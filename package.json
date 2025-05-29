@@ -1,0 +1,118 @@
+{
+  "name": "polygot-code-translator",
+  "displayName": "Polygot Code Translator",
+  "description": "Translate code between multiple programming languages with AI-powered accuracy. Supports Python, JavaScript, Java, and COBOL.",
+  "version": "0.1.0",
+  "publisher": "unelmaplatforms",
+  "author": {
+    "name": "Unelma Platforms",
+    "email": "info@unelmaplatforms.com"
+  },
+  "homepage": "https://github.com/unelmacoin/polygot-code-translator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unelmacoin/polygot-code-translator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/unelmacoin/polygot-code-translator/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "translate",
+    "code",
+    "programming",
+    "languages",
+    "converter",
+    "polyglot"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "icon": "images/icon.png",
+
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "polygot.translateCode",
+        "title": "Translate Code",
+        "category": "Polygot"
+      },
+      {
+        "command": "polygot.translateSelection",
+        "title": "Translate Selection",
+        "category": "Polygot"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "polygot.translateSelection",
+          "when": "editorHasSelection",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "polygot.translateCode",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Polygot",
+      "properties": {
+        "polygot.apiEndpoint": {
+          "type": "string",
+          "default": "https://translate.u16p.com/api/v1/translate",
+          "description": "API endpoint for the translation service"
+        },
+        "polygot.defaultTargetLanguage": {
+          "type": "string",
+          "default": "javascript",
+          "enum": ["python", "javascript", "typescript", "java", "csharp", "c++", "rust", "go", "ruby", "php", "swift"],
+          "description": "Default target language for translation"
+        },
+        "polygot.preserveComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Preserve comments during translation"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.3.9",
+    "eslint": "^8.56.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.7",
+    "vscode-languageclient": "^8.1.0"
+  }
+}
