@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "publisher": "unelmaplatforms",
   "author": {
-    "name": "Unelma Platforms",
+    "name": "Unelma Platforms Inc.",
     "email": "info@unelmaplatforms.com"
   },
   "homepage": "https://github.com/unelmacoin/polygot-code-translator",
@@ -17,6 +17,11 @@
     "url": "https://github.com/unelmacoin/polygot-code-translator/issues"
   },
   "license": "MIT",
+  "galleryBanner": {
+    "color": "#4F46E5",
+    "theme": "dark"
+  },
+  "preview": true,
   "keywords": [
     "translate",
     "code",
@@ -33,9 +38,12 @@
     "Snippets",
     "Other"
   ],
-  "icon": "images/icon.png",
 
   "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:polygot.translateCode",
+    "onCommand:polygot.translateSelection"
+  ],
   "contributes": {
     "commands": [
       {
