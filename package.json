@@ -2,8 +2,9 @@
   "name": "polygot-code-translator",
   "displayName": "Polygot Code Translator",
   "description": "Translate code between multiple programming languages with AI-powered accuracy. Supports Python, JavaScript, Java, and COBOL.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "unelmaplatforms",
+  "icon": "images/icon.png",
   "author": {
     "name": "Unelma Platforms Inc.",
     "email": "info@unelmaplatforms.com"
