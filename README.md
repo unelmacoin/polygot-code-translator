@@ -2,7 +2,7 @@
 
 A VS Code extension that translates code between multiple programming languages using AI. Easily convert code snippets or entire files between popular programming languages with just a few clicks.
 
-![Polygot Code Translator Demo](https://github.com/unelmaplatforms/unelma-code-translate/raw/main/polygot-demo.gif)
+![Polygot Code Translator Demo](https://github.com/unelmacoin/polygot-code-translator/blob/main/polygot.gif)
 
 ## Features
 
