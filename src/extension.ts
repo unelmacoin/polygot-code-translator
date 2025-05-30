@@ -19,23 +19,139 @@ interface TranslationResponse {
 
 // Supported language pairs
 const SUPPORTED_LANGUAGE_PAIRS = [
+  // Python
   { from: 'python', to: 'javascript' },
   { from: 'javascript', to: 'python' },
   { from: 'python', to: 'java' },
   { from: 'java', to: 'python' },
+  { from: 'python', to: 'typescript' },
+  { from: 'typescript', to: 'python' },
+  { from: 'python', to: 'c++' },
+  { from: 'c++', to: 'python' },
+  { from: 'python', to: 'c#' },
+  { from: 'c#', to: 'python' },
+  { from: 'python', to: 'ruby' },
+  { from: 'ruby', to: 'python' },
+  { from: 'python', to: 'go' },
+  { from: 'go', to: 'python' },
+  { from: 'python', to: 'php' },
+  { from: 'php', to: 'python' },
+  { from: 'python', to: 'perl' },
+  { from: 'perl', to: 'python' },
+  { from: 'python', to: 'fortran' },
+  { from: 'fortran', to: 'python' },
+  { from: 'python', to: 'pascal' },
+  { from: 'pascal', to: 'python' },
+  
+  // JavaScript/TypeScript
   { from: 'javascript', to: 'java' },
   { from: 'java', to: 'javascript' },
+  { from: 'javascript', to: 'typescript' },
+  { from: 'typescript', to: 'javascript' },
+  { from: 'javascript', to: 'c++' },
+  { from: 'c++', to: 'javascript' },
+  { from: 'javascript', to: 'c#' },
+  { from: 'c#', to: 'javascript' },
+  { from: 'javascript', to: 'dart' },
+  { from: 'dart', to: 'javascript' },
+  { from: 'javascript', to: 'html' },
+  { from: 'html', to: 'javascript' },
+  
+  // Java
+  { from: 'java', to: 'c++' },
+  { from: 'c++', to: 'java' },
+  { from: 'java', to: 'c#' },
+  { from: 'c#', to: 'java' },
+  { from: 'java', to: 'go' },
+  { from: 'go', to: 'java' },
+  { from: 'java', to: 'kotlin' },
+  { from: 'kotlin', to: 'java' },
+  { from: 'java', to: 'scala' },
+  { from: 'scala', to: 'java' },
+  { from: 'java', to: 'cobol' },
   { from: 'cobol', to: 'java' },
-  { from: 'java', to: 'cobol' }
+  
+  // C/C++
+  { from: 'c++', to: 'c' },
+  { from: 'c', to: 'c++' },
+  { from: 'c++', to: 'rust' },
+  { from: 'rust', to: 'c++' },
+  
+  // Web technologies
+  { from: 'css', to: 'scss' },
+  { from: 'scss', to: 'css' },
+  { from: 'typescript', to: 'dart' },
+  { from: 'dart', to: 'typescript' },
+  
+  // Systems languages
+  { from: 'rust', to: 'go' },
+  { from: 'go', to: 'rust' },
+  
+  // Newer languages
+  { from: 'swift', to: 'kotlin' },
+  { from: 'kotlin', to: 'swift' }
 ];
 
 // Map file extensions to language identifiers
 const EXTENSION_TO_LANGUAGE: { [key: string]: string } = {
+  // Python
   '.py': 'python',
+  
+  // JavaScript/TypeScript
   '.js': 'javascript',
+  '.jsx': 'javascript',
+  '.ts': 'typescript',
+  '.tsx': 'typescript',
+  
+  // Java/Kotlin/Scala
   '.java': 'java',
+  '.kt': 'kotlin',
+  '.scala': 'scala',
+  
+  // C/C++/C#
+  '.c': 'c',
+  '.h': 'c',
+  '.cpp': 'c++',
+  '.hpp': 'c++',
+  '.cc': 'c++',
+  '.cs': 'c#',
+  
+  // Go
+  '.go': 'go',
+  
+  // Ruby
+  '.rb': 'ruby',
+  
+  // PHP
+  '.php': 'php',
+  
+  // Perl
+  '.pl': 'perl',
+  '.pm': 'perl',
+  
+  // Web
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'css',
+  '.scss': 'scss',
+  
+  // Swift
+  '.swift': 'swift',
+  
+  // Dart
+  '.dart': 'dart',
+  
+  // Rust
+  '.rs': 'rust',
+  
+  // Legacy languages
   '.cbl': 'cobol',
-  '.cob': 'cobol'
+  '.cob': 'cobol',
+  '.f': 'fortran',
+  '.for': 'fortran',
+  '.f90': 'fortran',
+  '.pas': 'pascal',
+  '.pp': 'pascal'
 };
 
 // Get supported target languages for a given source language

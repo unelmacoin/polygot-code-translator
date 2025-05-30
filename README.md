@@ -2,6 +2,8 @@
 
 A VS Code extension that translates code between multiple programming languages using AI. Easily convert code snippets or entire files between popular programming languages with just a few clicks.
 
+![Polygot Code Translator Demo](https://github.com/unelmaplatforms/unelma-code-translate/raw/main/polygot-demo.gif)
+
 ## Features
 
 - **In-Editor Code Translation**: Right-click and translate selected code blocks to your target language
@@ -32,20 +34,52 @@ This extension contributes the following settings:
 - `Polygot: Translate Code`: Translate the entire current file
 - `Polygot: Translate Selection`: Translate the currently selected code
 
-## Supported Language Pairs
+## Supported Languages
 
-The extension supports the following language translations:
+### Core Languages
+- Python
+- JavaScript/TypeScript
+- Java
+- C/C++
+- C#
+- Go
+- Ruby
+- PHP
+- Perl
+- Rust
+- Swift
+- Kotlin
+- Dart
+- HTML/CSS/SCSS
+- COBOL
+- Fortran
+- Pascal
+- Scala
 
-- Python ↔ JavaScript
-- Python ↔ Java
-- JavaScript ↔ Java
-- Java ↔ COBOL
+### Supported File Extensions
+- **Python**: `.py`
+- **JavaScript/TypeScript**: `.js`, `.jsx`, `.ts`, `.tsx`
+- **Java/Kotlin/Scala**: `.java`, `.kt`, `.scala`
+- **C/C++**: `.c`, `.h`, `.cpp`, `.hpp`, `.cc`
+- **C#**: `.cs`
+- **Go**: `.go`
+- **Ruby**: `.rb`
+- **PHP**: `.php`
+- **Perl**: `.pl`, `.pm`
+- **Rust**: `.rs`
+- **Swift**: `.swift`
+- **Dart**: `.dart`
+- **COBOL**: `.cbl`, `.cob`
+- **Fortran**: `.f`, `.for`, `.f90`
+- **Pascal**: `.pas`, `.pp`
+- **Web**: `.html`, `.htm`, `.css`, `.scss`
 
-Supported file extensions:
-- Python: `.py`
-- JavaScript: `.js`
-- Java: `.java`
-- COBOL: `.cbl`, `.cob`
+### Example Language Pairs
+- Python ↔ JavaScript/TypeScript/Java/C++/C#/Ruby/Go
+- JavaScript/TypeScript ↔ Java/C++/C#/Dart/HTML
+- Java ↔ C++/C#/Go/Kotlin/Scala/COBOL
+- C++ ↔ C/Rust
+- And many more combinations!
 
 ### Requesting New Language Pairs
 
@@ -62,6 +96,32 @@ If you need support for additional language pairs, please contact us at [info@un
 - Some language-specific features may not translate perfectly and may require manual adjustment
 
 ## Release Notes
+
+### 0.1.2
+
+- Added support for 20+ programming languages including:
+  - TypeScript
+  - C/C++
+  - C#
+  - Go
+  - Ruby
+  - PHP
+  - Perl
+  - Fortran
+  - Pascal
+  - Kotlin
+  - Scala
+  - Rust
+  - Swift
+  - Dart
+  - HTML/CSS/SCSS
+- Added support for 50+ language pairs for translation
+- Added file extension mapping for better language detection
+- Improved language detection for various file types
+
+### 0.1.1
+
+- Added icon for the extension
 
 ### 0.1.0
 

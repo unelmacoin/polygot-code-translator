@@ -1,8 +1,8 @@
 {
   "name": "polygot-code-translator",
   "displayName": "Polygot Code Translator",
-  "description": "Translate code between multiple programming languages with AI-powered accuracy. Supports Python, JavaScript, Java, and COBOL.",
-  "version": "0.1.1",
+  "description": "Instantly translate Python to JavaScript, Java to C#, and more directly in VS Code",
+  "version": "0.1.2",
   "publisher": "unelmaplatforms",
   "icon": "images/icon.png",
   "author": {
@@ -29,7 +29,14 @@
     "programming",
     "languages",
     "converter",
-    "polyglot"
+    "code translation",
+    "code translator",
+    "Python",
+    "JavaScript",
+    "developer tools",
+    "polyglot",
+    "language converter",
+    "code converter"
   ],
   "engines": {
     "vscode": "^1.85.0"
