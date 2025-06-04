@@ -2,6 +2,23 @@
 
 All notable changes to the Polygot Code Translator extension will be documented in this file.
 
+## [0.1.4] - 2025-06-04
+
+### Added
+
+- Enhanced error handling with detailed network diagnostics
+- Added exponential backoff with jitter for retry mechanism
+- Improved timeout handling with reduced default timeout (15s → 10s)
+- Added network diagnostics viewer for troubleshooting connectivity issues
+- Better error messages with actionable steps for users
+
+### Fixed
+
+- Fixed duplicate variable declarations in error handling
+- Improved TypeScript type safety throughout the codebase
+- Fixed retry counter logic in translation service
+- Added proper cleanup of resources and timeouts
+
 ## [0.1.3] - 2025-06-04
 
 ### Added

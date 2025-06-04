@@ -1,5 +1,95 @@
 import * as vscode from 'vscode';
-import axios from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+
+// Track API status
+let isApiHealthy = true;
+let lastApiCheck = 0; // Track when we last checked the API status
+const API_HEALTH_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+async function testConnection(url: string): Promise<{ success: boolean; status?: number; message: string }> {
+  try {
+    console.log(`Testing connection to: ${url}`);
+    const startTime = Date.now();
+    
+    const response = await axios.head(url, {
+      timeout: 10000,
+      validateStatus: () => true
+    });
+    
+    const responseTime = Date.now() - startTime;
+    console.log(`Connection test to ${url} succeeded in ${responseTime}ms with status ${response.status}`);
+    
+    return {
+      success: response.status < 400,
+      status: response.status,
+      message: `Connection successful (${response.status} in ${responseTime}ms)`
+    };
+  } catch (error: any) {
+    console.error(`Connection test to ${url} failed:`, {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    return {
+      success: false,
+      message: `Connection failed: ${error.code || error.message}`
+    };
+  }
+}
+
+async function checkApiHealth(apiEndpoint: string): Promise<{ isHealthy: boolean; message?: string }> {
+  const now = Date.now();
+  
+  // Only check once every 5 minutes to avoid too many requests
+  if (now - lastApiCheck < API_HEALTH_CHECK_INTERVAL) {
+    return { isHealthy: isApiHealthy };
+  }
+  
+  const healthCheckUrl = apiEndpoint.replace(/\/translate$/, '/health');
+  
+  try {
+    console.log(`Checking API health at: ${healthCheckUrl}`);
+    lastApiCheck = now;
+    
+    const response = await axios.get(healthCheckUrl, {
+      timeout: 10000, // 10 seconds timeout
+      validateStatus: () => true, // Don't throw on any status code
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
+    isApiHealthy = response.status === 200;
+    
+    if (!isApiHealthy) {
+      console.warn(`API health check failed with status ${response.status}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data
+      });
+    }
+    
+    return {
+      isHealthy: isApiHealthy,
+      message: isApiHealthy ? 'API is healthy' : `API returned status ${response.status}`
+    };
+  } catch (error: any) {
+    console.error('API health check failed:', {
+      message: error.message,
+      code: error.code,
+      url: healthCheckUrl,
+      stack: error.stack
+    });
+    
+    isApiHealthy = false;
+    return {
+      isHealthy: false,
+      message: `Connection failed: ${error.code || error.message}`
+    };
+  }
+}
 
 interface TranslationRequest {
   source_code: string;
@@ -216,109 +306,317 @@ function isLanguagePairSupported(fromLang: string, toLang: string): boolean {
 
 async function translateCode(
   code: string,
-  sourceLanguage: string,
-  targetLanguage: string,
-  preserveComments: boolean = true
+  sourceLang: string,
+  targetLang: string,
+  preserveComments: boolean = true,
+  retryCount: number = 1
 ): Promise<string> {
+  // Add network diagnostics
+  const networkInfo = {
+    timestamp: new Date().toISOString(),
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    env: {
+      http_proxy: process.env.HTTP_PROXY || process.env.http_proxy || 'Not set',
+      https_proxy: process.env.HTTPS_PROXY || process.env.https_proxy || 'Not set',
+      no_proxy: process.env.NO_PROXY || process.env.no_proxy || 'Not set',
+      node_tls_reject_unauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED || 'Not set',
+      NODE_DEBUG: process.env.NODE_DEBUG || 'Not set',
+      NODE_OPTIONS: process.env.NODE_OPTIONS || 'Not set'
+    }
+  };
+  console.log('Network diagnostics:', networkInfo);
+
   const config = vscode.workspace.getConfiguration('polygot');
   const apiEndpoint = config.get<string>('apiEndpoint', 'https://translate.u16p.com/api/v1/translate');
-
-  // Use the provided language codes directly
-  const sourceLang = sourceLanguage;
-  const targetLang = targetLanguage;
-
-  // Check if the language pair is supported
-  if (!isLanguagePairSupported(sourceLang, targetLang)) {
-    const message = `Translation from ${sourceLang} to ${targetLang} is not currently supported.\n\n` +
-      `If you need this translation, please contact us at info@unelmaplatforms.com to request support for this language pair.`;
-    
-    vscode.window.showErrorMessage(message, 'Copy Email Address')
-      .then(selection => {
-        if (selection === 'Copy Email Address') {
-          vscode.env.clipboard.writeText('info@unelmaplatforms.com');
-        }
-      });
-    
-    throw new Error(`Translation from ${sourceLang} to ${targetLang} is not supported.`);
-  }
-
-  // Prepare the request payload according to the API's expected format
-  const requestPayload = {
-    source_code: code,  // API expects 'source_code' instead of 'code'
-    from_lang: sourceLang,  // API expects 'from_lang' instead of 'sourceLanguage'
-    to_lang: targetLang,   // API expects 'to_lang' instead of 'targetLanguage'
-    preserve_comments: preserveComments  // Note: check if the API supports this parameter
-  };
-
-  console.log('Sending translation request:', {
-    endpoint: apiEndpoint,
-    payload: requestPayload
+  const maxRetries = 1; // Reduced retries since we're seeing consistent timeouts
+  const timeoutMs = 10000; // Reduced to 10 seconds for faster failure detection
+  
+  // Log the translation request details
+  console.log('Translation request details:', {
+    sourceLang,
+    targetLang,
+    codeLength: code.length,
+    preserveComments,
+    retryCount,
+    maxRetries,
+    timeoutMs
   });
 
   try {
-    const response = await axios.post<TranslationResponse>(
-      apiEndpoint,
-      requestPayload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 30000, // 30 seconds timeout
-        validateStatus: () => true // Always resolve the promise
-      }
-    );
+    // Check API health before proceeding
+    const healthCheck = await checkApiHealth(apiEndpoint);
+    if (!healthCheck.isHealthy) {
+      console.warn('API health check failed:', healthCheck.message);
 
-    console.log('Translation response status:', response.status);
-    console.log('Response headers:', response.headers);
-    // Log a preview of the response data to avoid logging large responses
-    console.log('Response data preview:', {
-      ...response.data,
-      source_code: response.data.source_code ? '[source code]' : undefined,
-      translated_code: response.data.translated_code ? 
-        response.data.translated_code.substring(0, 100) + 
-        (response.data.translated_code.length > 100 ? '...' : '') : undefined
+      // Test connection to the API endpoint directly
+      const connectionTest = await testConnection(apiEndpoint);
+      console.log('Connection test result:', connectionTest);
+
+      const errorMessage = `The translation service is currently unavailable.\n` +
+        `Health Check: ${healthCheck.message}\n` +
+        `Connection Test: ${connectionTest.message}`;
+
+      const result = await vscode.window.showErrorMessage(
+        errorMessage,
+        'Try Anyway', 
+        'Check Again',
+        'Open Network Settings',
+        'Cancel'
+      );
+
+      if (result === 'Check Again') {
+        lastApiCheck = 0; // Reset the last API check to force a recheck
+        return translateCode(code, sourceLang, targetLang, preserveComments, retryCount);
+      } else if (result === 'Open Network Settings') {
+        vscode.commands.executeCommand('workbench.action.network.settings');
+        throw new Error('Please check your network settings and try again.');
+      } else if (result !== 'Try Anyway') {
+        throw new Error('Translation aborted by user');
+      }
+      console.log('User chose to try translation despite connection issues');
+    }
+
+    // Show a warning if the code is too large
+    const MAX_CODE_LENGTH = 10000; // 10KB
+    if (code.length > MAX_CODE_LENGTH) {
+      const message = `The code is too large (${code.length} characters). ` +
+        `Please try with a smaller piece of code (under ${MAX_CODE_LENGTH} characters).`;
+      vscode.window.showWarningMessage(message);
+      throw new Error('Code too large for translation');
+    }
+
+    // Check if the language pair is supported
+    if (!isLanguagePairSupported(sourceLang, targetLang)) {
+      const message = `Translation from ${sourceLang} to ${targetLang} is not currently supported.\n\n` +
+        `If you need this translation, please contact us at info@unelmaplatforms.com to request support for this language pair.`;
+      
+      vscode.window.showErrorMessage(message, 'Copy Email Address')
+        .then(selection => {
+          if (selection === 'Copy Email Address') {
+            vscode.env.clipboard.writeText('info@unelmaplatforms.com');
+          }
+        });
+      
+      throw new Error(`Translation from ${sourceLang} to ${targetLang} is not supported.`);
+    }
+
+    // Prepare the request payload according to the API's expected format
+    const requestPayload: TranslationRequest = {
+      source_code: code,
+      from_lang: sourceLang,
+      to_lang: targetLang,
+      preserve_comments: preserveComments
+    };
+
+    console.log('Sending translation request:', {
+      endpoint: apiEndpoint,
+      from: sourceLang,
+      to: targetLang,
+      codeLength: code.length,
+      retryCount
     });
 
-    if (response.status >= 200 && response.status < 300) {
-      if (response.data && response.data.translated_code) {
-        // Extract the code from Markdown code blocks if present
-        const translatedCode = response.data.translated_code;
-        // Remove Markdown code block syntax if present
-        const codeWithoutMarkdown = translatedCode
-          .replace(/^```[\s\S]*?\n/, '')  // Remove opening code block
-          .replace(/\n```$/, '')           // Remove closing code block
-          .trim();
-        
-        return codeWithoutMarkdown;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await axios.post<TranslationResponse>(
+        apiEndpoint,
+        requestPayload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          signal: controller.signal,
+          timeout: timeoutMs,
+          validateStatus: (status) => status < 500 // Don't throw for 4xx errors
+        }
+      );
+
+      clearTimeout(timeoutId);
+
+      console.log('Translation response status:', response.status);
+      
+      if (response.status >= 200 && response.status < 300) {
+        if (response.data?.translated_code) {
+          // Extract the code from Markdown code blocks if present
+          const translatedCode = response.data.translated_code;
+          // Remove Markdown code block syntax if present
+          const codeWithoutMarkdown = translatedCode
+            .replace(/^```[\s\S]*?\n/, '')  // Remove opening code block
+            .replace(/\n```$/, '')           // Remove closing code block
+            .trim();
+          
+          if (!codeWithoutMarkdown) {
+            throw new Error('Received empty translation from the server');
+          }
+          
+          return codeWithoutMarkdown;
+        } else {
+          throw new Error('Invalid response format from translation service: Missing translated_code');
+        }
       } else {
-        throw new Error('Invalid response format from translation service');
+        const errorMessage = response.data?.message || 
+                           response.statusText || 
+                           `Request failed with status ${response.status}`;
+        throw new Error(`Translation failed: ${errorMessage}`);
       }
-    } else {
-      const errorMessage = response.data?.message || 
-                         response.statusText || 
-                         `Request failed with status ${response.status}`;
+    } catch (error: unknown) {
+      clearTimeout(timeoutId);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+          // Handle timeout or gateway timeout
+          if (retryCount > 0) {
+            console.log(`Retrying... (${maxRetries - retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return translateCode(code, sourceLang, targetLang, preserveComments, retryCount - 1);
+          }
+          throw new Error('Translation service is currently unavailable. The request timed out.');
+        }
+        
+        if (error.response) {
+          // Handle HTTP errors (4xx, 5xx)
+          const status = error.response.status;
+          const message = error.response.data?.message || error.message || 'Unknown error occurred';
+          
+          if (status === 429) {
+            // Rate limited
+            const retryAfter = parseInt(error.response.headers['retry-after'] || '5', 10) * 1000;
+            if (retryCount > 0) {
+              await new Promise(resolve => setTimeout(resolve, retryAfter));
+              return translateCode(code, sourceLang, targetLang, preserveComments, retryCount - 1);
+            }
+            throw new Error('Translation service rate limit exceeded. Please try again later.');
+          }
+          
+          throw new Error(`Translation failed (${status}): ${message}`);
+        } else if (error.request) {
+          // The request was made but no response was received
+          throw new Error('No response received from the translation service. Please check your connection.');
+        } else {
+          // Something happened in setting up the request
+          throw new Error(`Failed to send translation request: ${error.message}`);
+        }
+      }
+      
+      // For non-Axios errors
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       throw new Error(`Translation failed: ${errorMessage}`);
     }
-  } catch (error: any) {
-    console.error('Translation error details:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      responseData: error.response?.data,
-      stack: error.stack
-    });
+  } catch (error: unknown) {
+    console.error('Translation error:', error);
     
-    if (error.response?.data?.message) {
-      throw new Error(`Translation failed: ${error.response.data.message}`);
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Translation request timed out. Please try again.');
-    } else if (error.code === 'ENOTFOUND') {
-      throw new Error('Could not connect to the translation service. Please check your internet connection.');
-    } else {
-      throw new Error(`Failed to translate code: ${error.message}`);
+    // For Axios errors
+    if (axios.isAxiosError(error)) {
+      // Handle timeout or gateway timeout
+      if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+        const retryInfo = `Retry ${maxRetries - retryCount + 1} of ${maxRetries}`;
+        console.warn(`Translation service timeout. ${retryInfo}`);
+        
+        if (retryCount > 0) {
+          console.log(`Retrying... (${retryInfo})`);
+          // Add exponential backoff with jitter
+          const backoffTime = Math.min(1000 * Math.pow(2, maxRetries - retryCount), 30000);
+          const jitter = Math.floor(Math.random() * 1000);
+          await new Promise(resolve => setTimeout(resolve, backoffTime + jitter));
+          return translateCode(code, sourceLang, targetLang, preserveComments, retryCount - 1);
+        }
+        
+        const message = 'The translation service is currently unavailable or timed out.\n\n' +
+          'This could be due to high server load or maintenance.\n' +
+          'Please try again later or contact support if the issue persists.';
+        
+        const response = await vscode.window.showErrorMessage(
+          message, 
+          'Retry', 
+          'Open Documentation',
+          'Show Network Diagnostics'
+        );
+        
+        if (response === 'Retry') {
+          vscode.commands.executeCommand('polygot.translateCode');
+        } else if (response === 'Open Documentation') {
+          vscode.env.openExternal(vscode.Uri.parse('https://unelmasupport.com'));
+        } else if (response === 'Show Network Diagnostics') {
+          const diagnostics = `### Network Diagnostics
+- **Time**: ${new Date().toISOString()}
+- **Node Version**: ${process.version}
+- **Platform**: ${process.platform}
+- **Architecture**: ${process.arch}
+- **Proxy Settings**:
+  - HTTP_PROXY: ${process.env.HTTP_PROXY || 'Not set'}
+  - HTTPS_PROXY: ${process.env.HTTPS_PROXY || 'Not set'}
+  - NO_PROXY: ${process.env.NO_PROXY || 'Not set'}
+- **Code Length**: ${code.length} characters
+- **Source Language**: ${sourceLang}
+- **Target Language**: ${targetLang}`;
+          
+          const doc = await vscode.workspace.openTextDocument({
+            content: diagnostics,
+            language: 'markdown'
+          });
+          await vscode.window.showTextDocument(doc, { preview: false });
+        }
+        
+        throw new Error('Translation service unavailable. Please try again later.');
+      }
+      
+      // Handle HTTP errors (4xx, 5xx)
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.message || error.message || 'Unknown error occurred';
+        
+        if (status === 429) {
+          // Rate limited
+          const retryAfter = parseInt(error.response.headers['retry-after'] || '5', 10) * 1000;
+          if (retryCount > 0) {
+            await new Promise(resolve => setTimeout(resolve, retryAfter));
+            return translateCode(code, sourceLang, targetLang, preserveComments, retryCount - 1);
+          }
+          throw new Error('Translation service rate limit exceeded. Please try again later.');
+        }
+        
+        if (status === 413) {
+          throw new Error('The code is too large to translate. Please reduce the size and try again.');
+        }
+        
+        throw new Error(`Translation failed (${status}): ${message}`);
+      } 
+      
+      // Handle request errors
+      if (error.request) {
+        // The request was made but no response was received
+        if (retryCount > 0 && (
+          error.code === 'ECONNRESET' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ENOTFOUND'
+        )) {
+          console.log(`Retrying... (${maxRetries - retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, maxRetries - retryCount)));
+          return translateCode(code, sourceLang, targetLang, preserveComments, retryCount - 1);
+        }
+        
+        if (error.code === 'ENOTFOUND') {
+          throw new Error('Could not connect to the translation service. Please check your internet connection.');
+        } else if (error.code === 'ECONNRESET') {
+          throw new Error('Connection to the translation service was reset. Please try again.');
+        } else {
+          throw new Error('No response received from the translation service. Please check your connection.');
+        }
+      }
+      
+      // Something happened in setting up the request
+      throw new Error(`Failed to send translation request: ${error.message}`);
     }
+    
+    // For non-Axios errors
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    throw new Error(`Translation failed: ${errorMessage}`);
+  }
   }
 }
 
