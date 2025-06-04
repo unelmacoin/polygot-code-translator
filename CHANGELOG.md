@@ -2,9 +2,19 @@
 
 All notable changes to the Polygot Code Translator extension will be documented in this file.
 
-## [Unreleased]
+## [0.1.3] - 2025-06-04
 
 ### Added
+
+- Added support for PHP to JavaScript/TypeScript translation
+- Added framework-specific translations:
+  - Flask ↔ Express.js
+  - Django ↔ Spring Boot
+  - Vue.js ↔ React ↔ Angular ↔ Svelte
+  - JSX ↔ TSX
+- Added support for framework configuration files (pom.xml, build.gradle, requirements.txt, etc.)
+- Added command palette integration for "Translate Current File"
+- Improved language detection for framework-specific files
 
 ## [0.1.2] - 2025-05-30
 

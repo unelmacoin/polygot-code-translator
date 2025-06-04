@@ -56,6 +56,12 @@ const SUPPORTED_LANGUAGE_PAIRS = [
   { from: 'dart', to: 'javascript' },
   { from: 'javascript', to: 'html' },
   { from: 'html', to: 'javascript' },
+  { from: 'javascript', to: 'php' },
+  { from: 'php', to: 'javascript' },
+  
+  // PHP
+  { from: 'php', to: 'typescript' },
+  { from: 'typescript', to: 'php' },
   
   // Java
   { from: 'java', to: 'c++' },
@@ -76,6 +82,8 @@ const SUPPORTED_LANGUAGE_PAIRS = [
   { from: 'c', to: 'c++' },
   { from: 'c++', to: 'rust' },
   { from: 'rust', to: 'c++' },
+  { from: 'c++', to: 'c#' },
+  { from: 'c#', to: 'c++' },
   
   // Web technologies
   { from: 'css', to: 'scss' },
@@ -86,6 +94,20 @@ const SUPPORTED_LANGUAGE_PAIRS = [
   // Systems languages
   { from: 'rust', to: 'go' },
   { from: 'go', to: 'rust' },
+  
+  // Framework-specific translations
+  { from: 'flask', to: 'express' },
+  { from: 'express', to: 'flask' },
+  { from: 'django', to: 'spring' },
+  { from: 'spring', to: 'django' },
+  { from: 'vue', to: 'react' },
+  { from: 'react', to: 'vue' },
+  { from: 'jsx', to: 'tsx' },
+  { from: 'tsx', to: 'jsx' },
+  { from: 'vue', to: 'svelte' },
+  { from: 'svelte', to: 'vue' },
+  { from: 'angular', to: 'react' },
+  { from: 'react', to: 'angular' },
   
   // Newer languages
   { from: 'swift', to: 'kotlin' },
@@ -99,9 +121,9 @@ const EXTENSION_TO_LANGUAGE: { [key: string]: string } = {
   
   // JavaScript/TypeScript
   '.js': 'javascript',
-  '.jsx': 'javascript',
+  '.jsx': 'jsx',
   '.ts': 'typescript',
-  '.tsx': 'typescript',
+  '.tsx': 'tsx',
   
   // Java/Kotlin/Scala
   '.java': 'java',
@@ -144,6 +166,10 @@ const EXTENSION_TO_LANGUAGE: { [key: string]: string } = {
   // Rust
   '.rs': 'rust',
   
+  // Framework-specific
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  
   // Legacy languages
   '.cbl': 'cobol',
   '.cob': 'cobol',
@@ -151,7 +177,23 @@ const EXTENSION_TO_LANGUAGE: { [key: string]: string } = {
   '.for': 'fortran',
   '.f90': 'fortran',
   '.pas': 'pascal',
-  '.pp': 'pascal'
+  '.pp': 'pascal',
+  
+  // Framework configuration files
+  'pom.xml': 'spring',
+  'build.gradle': 'spring',
+  'build.gradle.kts': 'spring',
+  'application.properties': 'spring',
+  'application.yml': 'spring',
+  'application.yaml': 'spring',
+  'requirements.txt': 'flask',
+  'app.py': 'flask',
+  'manage.py': 'django',
+  'urls.py': 'django',
+  'settings.py': 'django',
+  'package.json': 'express',
+  'server.js': 'express',
+  'app.js': 'express'
 };
 
 // Get supported target languages for a given source language
@@ -280,16 +322,34 @@ async function translateCode(
   }
 }
 
-function getLanguageFromFileName(fileName: string): string | undefined {
+// Get language from file name
+export function getLanguageFromFileName(fileName: string): string | undefined {
+  // First check for exact filename matches (like package.json, pom.xml, etc.)
+  const fileNameLower = fileName.toLowerCase();
+  
+  // Check for framework configuration files first
+  const frameworkFiles = [
+    'pom.xml', 'build.gradle', 'build.gradle.kts', 
+    'application.properties', 'application.yml', 'application.yaml',
+    'requirements.txt', 'app.py', 'manage.py', 'urls.py', 
+    'settings.py', 'package.json', 'server.js', 'app.js'
+  ];
+  
+  for (const file of frameworkFiles) {
+    if (fileNameLower.endsWith(file)) {
+      return EXTENSION_TO_LANGUAGE[file];
+    }
+  }
+  
+  // Check for file extensions
   const extension = fileName.substring(fileName.lastIndexOf('.'));
-  const language = EXTENSION_TO_LANGUAGE[extension];
-  
-  // Check if the language is in any of our supported pairs
-  const isSupported = SUPPORTED_LANGUAGE_PAIRS.some(
-    pair => pair.from === language || pair.to === language
-  );
-  
-  return isSupported ? language : undefined;
+  return EXTENSION_TO_LANGUAGE[extension.toLowerCase()] || 
+         // Fallback for common framework files
+         (fileName.endsWith('.vue') ? 'vue' :
+          fileName.endsWith('.svelte') ? 'svelte' :
+          fileName.endsWith('.jsx') ? 'jsx' :
+          fileName.endsWith('.tsx') ? 'tsx' :
+          undefined);
 }
 
 async function translateSelection() {
@@ -334,35 +394,101 @@ async function showTranslationDialog(code: string, sourceLanguage: string) {
     return;
   }
 
-  const targetLanguage = await vscode.window.showQuickPick(
-    supportedTargets,
+  // Map language codes to display names
+  const languageDisplayNames: {[key: string]: string} = {
+    'python': 'Python',
+    'javascript': 'JavaScript',
+    'typescript': 'TypeScript',
+    'java': 'Java',
+    'c#': 'C#',
+    'c++': 'C++',
+    'c': 'C',
+    'go': 'Go',
+    'rust': 'Rust',
+    'ruby': 'Ruby',
+    'php': 'PHP',
+    'perl': 'Perl',
+    'swift': 'Swift',
+    'kotlin': 'Kotlin',
+    'scala': 'Scala',
+    'dart': 'Dart',
+    'html': 'HTML',
+    'css': 'CSS',
+    'scss': 'SCSS',
+    'cobol': 'COBOL',
+    'fortran': 'Fortran',
+    'pascal': 'Pascal',
+    // Framework-specific
+    'flask': 'Flask (Python)',
+    'express': 'Express.js',
+    'django': 'Django (Python)',
+    'spring': 'Spring Boot (Java)',
+    'vue': 'Vue.js',
+    'react': 'React',
+    'angular': 'Angular',
+    'svelte': 'Svelte',
+    'jsx': 'React (JSX)',
+    'tsx': 'React (TSX)'
+  };
+
+  // Create quick pick items with display names
+  const quickPickItems = supportedTargets.map(lang => ({
+    label: languageDisplayNames[lang] || lang.charAt(0).toUpperCase() + lang.slice(1),
+    description: `Translate to ${languageDisplayNames[lang] || lang}`,
+    lang: lang
+  }));
+
+  const selectedItem = await vscode.window.showQuickPick(
+    quickPickItems,
     { 
       placeHolder: 'Select target language',
       canPickMany: false,
+      matchOnDescription: true,
       ignoreFocusOut: true
     }
   );
 
-  if (!targetLanguage) {
+  if (!selectedItem) {
     return;
   }
 
+  const targetLanguage = selectedItem.lang;
   const preserveComments = config.get<boolean>('preserveComments', true);
   
   try {
-    await vscode.window.withProgress(
+    vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: 'Translating code...',
-        cancellable: false
+        title: `Translating from ${sourceLanguage} to ${targetLanguage}...`,
+        cancellable: true
       },
-      async () => {
-        const translatedCode = await translateCode(code, sourceLanguage, targetLanguage, preserveComments);
-        await showTranslatedCode(translatedCode, targetLanguage);
+      async (progress, token) => {
+        try {
+          const translatedCode = await translateCode(
+            code,
+            sourceLanguage,
+            targetLanguage,
+            preserveComments
+          );
+          
+          if (token.isCancellationRequested) {
+            return;
+          }
+          
+          showTranslatedCode(translatedCode, targetLanguage);
+        } catch (error) {
+          if (!token.isCancellationRequested) {
+            vscode.window.showErrorMessage(
+              error instanceof Error ? error.message : 'Translation failed'
+            );
+          }
+        }
       }
     );
   } catch (error) {
-    vscode.window.showErrorMessage(error instanceof Error ? error.message : 'An unknown error occurred');
+    vscode.window.showErrorMessage(
+      error instanceof Error ? error.message : 'Translation failed'
+    );
   }
 }
 

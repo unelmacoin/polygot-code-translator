@@ -2,7 +2,7 @@
   "name": "polygot-code-translator",
   "displayName": "Polygot Code Translator",
   "description": "Instantly translate Python to JavaScript, Java to C#, and more directly in VS Code",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "unelmaplatforms",
   "icon": "images/icon.png",
   "author": {
@@ -76,7 +76,13 @@
       "commandPalette": [
         {
           "command": "polygot.translateCode",
-          "when": "false"
+          "when": "editorLangId != markdown",
+          "title": "Translate Current File"
+        },
+        {
+          "command": "polygot.translateSelection",
+          "when": "editorHasSelection && editorLangId != markdown",
+          "title": "Translate Selection"
         }
       ]
     },
